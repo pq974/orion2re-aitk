@@ -38,6 +38,8 @@ namespace maintain {
             return;
         }
 
+        printf("/!\\\t%s scrapping things for %d BC\n", player->race_name, -(player->surplus_bc + player->bc));
+
         int32_t worths[MAX_SHIPS];
         memset(worths, 0, sizeof(worths));
         ship_worths = &worths;

@@ -883,6 +883,7 @@ namespace COLONY {
             case COLONY_PRODUCTION_REFIT:
             case COLONY_PRODUCTION_TRADE_GOODS:
             case COLONY_PRODUCTION_NONE:
+            case COLONY_PRODUCTION_AI_STOCKPILE:
             case 0:
                 // Do nothing
                 break;

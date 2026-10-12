@@ -272,7 +272,15 @@ namespace COLONIZE {
                             }
                         }
 
-                        if (best_planet_idx == -1) {
+                        int no_slot = 1;
+                        if (best_planet_idx >= 0 && MOX::planet[best_planet_idx].colony_index >= 0) { no_slot = 0; }
+                        for (int16_t colony_idx = 0; colony_idx < MAX_COLONIES && no_slot; colony_idx++) {
+                          if (MOX::colony[colony_idx].allocated_to == (int8_t)player_idx) {
+                            no_slot = 0;
+                          }
+                        }                        
+
+                        if (best_planet_idx == -1 || no_slot) {
                             done_with_star = true;
                             if (colony_base_ptr != nullptr) {
                                 // Sell colony base buildings if no worthwhile planets found

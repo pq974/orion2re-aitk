@@ -55,6 +55,9 @@ namespace SETTLER {
             colony->n_pops++;
         }
 
+        // DEBUG
+        if (is_full) { printf("/!\\\t%s settler died on arrival at %s\n", MOX::player[colony->owner].race_name, HACCESS::Get_Planet_Name_No_Prime(colony->planet)); }
+
         return !is_full;
     }
 

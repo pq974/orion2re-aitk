@@ -1563,6 +1563,7 @@ namespace COLCALC {
         switch (product) {
             case COLONY_PRODUCTION_AI_UNASSIGNED:
             case COLONY_PRODUCTION_AI_TRADE_GOODS:
+            case COLONY_PRODUCTION_AI_STOCKPILE:
             case COLONY_PRODUCTION_HOUSING:
             case COLONY_PRODUCTION_TRADE_GOODS:
             case COLONY_PRODUCTION_NONE:
@@ -3690,7 +3691,7 @@ namespace COLCALC {
             const int32_t product_cost =
                 static_cast<int32_t>(COLCALC::Colony_Producing_Product_Cost(colony));
 
-            if (production_pool >= product_cost) {
+            if (colony->producing[0] != COLONY_PRODUCTION_AI_STOCKPILE && production_pool >= product_cost) {
                 s_MSG build_msg{};
                 build_msg.msg_type = MSG_TYPE_COLONY;
                 build_msg.u.colony.planet_idx = colony->planet;

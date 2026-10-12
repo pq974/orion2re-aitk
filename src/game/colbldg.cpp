@@ -1039,6 +1039,13 @@ namespace COLBLDG {
                 Print_Setting_Description(209, 119, 248, 12 /* 0xC */);
                 break;
             }
+            case COLONY_PRODUCTION_AI_STOCKPILE: {
+                fonts::Set_Font_Style_Shadow_Down(4, &l_font_color_array);
+                BILL::Squeeze_Print(306, (y_line_count * 13 + 21), Selection_Name(item_id), 156);
+                y_line_count += 2;
+                Print_Setting_Description(209, 119, 248, 13 /* 0xD */);
+                break;
+            }
             case COLONY_PRODUCTION_NONE:
             case 0:
                 return;
@@ -2527,6 +2534,8 @@ namespace COLBLDG {
                 return ESTRINGS::E_Strings(0x142);
             case COLONY_PRODUCTION_TRADE_GOODS:
                 return ESTRINGS::E_Strings(0x21D);
+            case COLONY_PRODUCTION_AI_STOCKPILE:
+                return (char*) "AI STOCKPILE";
             default:
                 break;
         }

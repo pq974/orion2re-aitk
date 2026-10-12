@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "lua/lua_game.h"
+#include "game/aitk.h"
 
 namespace NEXTTURN {
 
@@ -91,6 +92,9 @@ namespace NEXTTURN {
     }
 
     void __cdecl Next_Turn_Calc() {
+        struct AITK::aidata * aitk_aidata = reinterpret_cast<struct AITK::aidata *>(malloc(sizeof(*aitk_aidata)));
+        if (!aitk_aidata) { abort(); }
+        
         if (MOX::game_type >= 0 && MOX::game_type <= 1) {
             EVENTS::Clear_Deferred_Monster_Event_Target();
             fields::Assign_Auto_Function(SCORE::nullsub, 1);
@@ -103,6 +107,7 @@ namespace NEXTTURN {
         }
 
         AIDATA::Compute_AI_Data();
+        AITK::Init_AI_Data_(aitk_aidata);
         DIP_SCRN::Resolve_Delayed_Diplomacy_Orders();
         DIP_SCRN::Set_Opportunity_Attacks();
         diplomac::Clear_Diplomacy_Messages();
@@ -113,10 +118,13 @@ namespace NEXTTURN {
 #if defined(ORION2RE_ENABLE_DEBUG_OVERLAY)
         ai_state::Capture_Build_State();
 #endif
-        aidudes::All_Colony_AI();
+        //aidudes::All_Colony_AI_();
+        AITK_COLONY::Manage_Colonies_(aitk_aidata);
+        if (aitk_aidata->game_turn > 0) { COLONIZE::All_AI_Colonize(); }
         AIMOVE::Move_All_AI();
-        COLONIZE::All_AI_Colonize();
-        aitech::All_AI_Tech_Select();
+        //aitech::All_AI_Tech_Select();
+        AITK_TECH::Set_Research_(aitk_aidata);
+        AITK_TECH::Trade_Tech_(aitk_aidata);
         maintain::Make_Scrap_Ships_Dead();
         REPORT::Initialize_Reports();
         TRADE::Process_Trade_And_Research_Agreements();
@@ -198,6 +206,9 @@ namespace NEXTTURN {
         if (MAINSCR::in_auto_next_turn_mode == 0) {
             mouse::Set_Mouse_List(&MOX::mouse_list_arrow, 1);
         }
+
+        AITK::Uninit_AI_Data_(aitk_aidata);
+        free(aitk_aidata);
     }
 
 } // namespace NEXTTURN
