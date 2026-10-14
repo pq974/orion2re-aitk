@@ -125,6 +125,16 @@ namespace AITK {
       }
     }
 
+    if (aidata->game_turn == 0) {
+      for (int pid = 0; pid < MOX::NUM_PLAYERS; pid++) {
+        struct s_player * p = MOX::player + pid;
+        if (p->eliminated || p->objectives == PLAYER_OBJECTIVE_HUMAN) { continue; }
+        // TODO: make this depend on strategy
+        p->objectives = PLAYER_OBJECTIVE_EXPANSIONIST;
+        p->personality = PLAYER_PERSONALITY_XENOPHOBIC;
+      }
+    }
+    
     /* DEBUG
     if (aidata->game_turn == 0) {
       struct s_player * saved_p_ai = AIMOVE::p_ai;

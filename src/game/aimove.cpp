@@ -1442,13 +1442,22 @@ namespace AIMOVE {
 
         int16_t num_enemy_colony_ships = (int16_t)(&enemy_colony_ships_buf[MAX_SHIPS] - enemy_colony_ships_ptr);
 
+        int war_bitmask = 0;
+        for (int other_p = 0; other_p < MOX::NUM_PLAYERS; other_p++) {
+          if (other_p != AIMOVE::i_ai && !MOX::player[other_p].eliminated
+              && MOX::player[AIMOVE::i_ai].contact[other_p]
+              && MOX::player[AIMOVE::i_ai].treaty[other_p] >= 4) {
+            war_bitmask |= (1 << other_p);
+          }
+        }
+        
         while (*count > 0) {
             if (num_my_colony_ships <= 0) return;
 
             int16_t target_idx = *count;
             int16_t star_idx = MOX::planet[planets[target_idx - 1].planet_idx].star_index;
 
-            if ((~((1 << AIMOVE::i_ai)) & (*AIDATA::star_in_extended_range_of_player)[star_idx]) == 0 &&
+            if ((war_bitmask & (*AIDATA::star_in_range_of_player)[star_idx]) == 0 &&
                 (*AIDATA::ai_star_info)[star_idx].per_player[AIMOVE::i_ai].enemy_enroute_or_threat == 0 &&
                 AIMOVE::Star_Has_Monster(star_idx) == 0) {
                 if (MOX::settings.game_difficulty >= GAME_DIFFICULTY_AVERAGE ||

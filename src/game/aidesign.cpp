@@ -1250,8 +1250,9 @@ namespace aidesign {
                 for (int16_t i = 0; i < count; ++i) {
                     uint16_t w_idx = weapon_indices[i];
                     if (w_idx != 0) {
-                        int32_t space = DESIGN::Weapon_Space(player_idx, w_idx, 1, WEAPON_FIRING_ARC_FORWARD, 5, 0);
-                        int32_t score = (((int32_t)TECHDATA::weapons[w_idx].max_damage - max_shield) * 10) / space;
+                        int32_t space = DESIGN::Weapon_Space(player_idx, w_idx, 1, WEAPON_FIRING_ARC_FORWARD, 5, (weapon_mods[i] & (WEAPON_MOD_FLAG_ENVELOPING | WEAPON_MOD_FLAG_MIRV)));
+                        int hits = (weapon_mods[i] & (WEAPON_MOD_FLAG_ENVELOPING | WEAPON_MOD_FLAG_MIRV)) ? 4 : 1;
+                        int32_t score = (((int32_t)TECHDATA::weapons[w_idx].max_damage - max_shield) * hits * 10) / space;
                         if (best_score < score) {
                             best_index = i;
                             best_score = score;
@@ -1424,6 +1425,14 @@ namespace aidesign {
         }
 
         remaining_space -= DESIGN::Shield_Space_Given_M_Level((int16_t)design->shield_type, (int16_t)design->size, player_idx);
+
+        if (design->size >= HULL_CRUISER) {
+          int32_t spent = Add_Specials_To_Design((struct s_spcl[1]){{SPECIAL_HEAVY_ARMOR, AI_SPECIAL_ITEM_SPECIAL}}, 1, player_idx, design, remaining_space, &weapon_slot_idx);
+          if (spent == 0) {
+            spent = Add_Specials_To_Design((struct s_spcl[1]){{SPECIAL_REINFORCED_HULL, AI_SPECIAL_ITEM_SPECIAL}}, 1, player_idx, design, remaining_space, &weapon_slot_idx);
+          }
+          remaining_space -= spent;
+        } 
 
         const int16_t table_class = (ship_class == 7) ? 0 : ship_class;
         const s_aidesign_ship_design* table =

@@ -50,6 +50,12 @@ namespace INITSHIP {
                         weapon.type == WEAPON_TYPE_TORPEDO)) {
                     int16_t weapon_damage = Weapon_Selection_Max_Damage(
                         weapon, strategic_combat);
+                    if (!MOX::settings.strategic_combat_flag) {
+                      int16_t mini_level = DESIGN::Miniaturization_Level(player_idx, weapon.tech_app_id);
+                      if (mini_level >= 2 && (weapon.available_mods & COMBINIT::defenses_allowed_mods.missile_torp & WEAPON_MOD_FLAG_MIRV)) {
+                        weapon_damage *= 2;
+                      }
+                    }
                     if (weapon_damage > max_damage) {
                         best_idx = i;
                         max_damage = weapon_damage;
@@ -1008,6 +1014,12 @@ namespace INITSHIP {
                     weapon.type == WEAPON_TYPE_MISSILE) {
                     int16_t weapon_damage = Weapon_Selection_Max_Damage(
                         weapon, MOX::settings.strategic_combat_flag == 1);
+                    if (!MOX::settings.strategic_combat_flag) {
+                      int16_t mini_level = DESIGN::Miniaturization_Level(player_idx, weapon.tech_app_id);
+                      if (mini_level >= 2 && (weapon.available_mods & COMBINIT::defenses_allowed_mods.missile_torp & WEAPON_MOD_FLAG_MIRV)) {
+                        weapon_damage *= 2;
+                      }
+                    } 
                     if (weapon_damage > max_damage) {
                         best_weapon_idx = (int16_t)i;
                         max_damage = weapon_damage;

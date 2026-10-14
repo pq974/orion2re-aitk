@@ -329,7 +329,7 @@ namespace AITK_COLONY {
     }
   }
 
-  static void __cdecl Make_Research_Colony_(int cid) {
+  static void __cdecl Make_Research_Colony_(int cid, int preserve_prod) {
     struct s_colony * c = MOX::colony+cid;
     int had_pollution = c->pollution > 0;
 
@@ -348,7 +348,7 @@ namespace AITK_COLONY {
       struct pop_with_score * cand = candidates + candidate_id;
       POP::Set_Prof(c->pop + cand->pop_id, POP::PROF_SCIENTIST);
       COLCALC::Colony_Industry_Production(c, nullptr);
-      if (c->production[ECON_INDUSTRY] < c->maintenance[ECON_INDUSTRY]
+      if (c->production[ECON_INDUSTRY] < c->maintenance[ECON_INDUSTRY] + preserve_prod
           || (had_pollution && c->pollution == 0)) {
         POP::Set_Prof(c->pop + cand->pop_id, POP::PROF_WORKER);
         COLCALC::Colony_Industry_Production(c, nullptr);
@@ -380,7 +380,7 @@ namespace AITK_COLONY {
               || ((c->producing[0] == COLONY_PRODUCTION_FREIGHTERS || c->producing[0] == BUILDING_COLONY_BASE)
                   && (!high_prod || (p->tech_fields[TECHDATA::technology_applications[TECH_APP_FREIGHTERS].tech_field_id] != 3
                                      && !p->traits[TRAIT_EATS_MINERALS])))) {
-            Make_Research_Colony_(cid);
+            Make_Research_Colony_(cid, 0);
             if (c->producing[0] == BUILDING_COLONY_BASE || COLBLDG::Colony_Production_Is_Queued_Ship(c->producing[0])) {
               COLBLDG::Delete_From_Colony_Queue(cid, 0);
               if (c->producing[0] == COLONY_PRODUCTION_NONE) {
@@ -398,7 +398,15 @@ namespace AITK_COLONY {
         if (EVENTS::Event_Check_Space_Anomaly(cid)) { continue; }
         struct s_colony * c = MOX::colony+cid;
         if (c->producing[0] == COLONY_PRODUCTION_AI_STOCKPILE || EVENTS::Event_Check_Plague(cid)) {
-          Make_Research_Colony_(cid);
+          Make_Research_Colony_(cid, 0);
+        } else {
+          int cost = COLCALC::Colony_Producing_Product_Cost(c);
+          if (!COLBLDG::Colony_Production_Is_Building(c->producing[0])
+              && cost > 0
+              && c->production[ECON_INDUSTRY] - c->maintenance[ECON_INDUSTRY]
+              + c->production_spent + c->bought_outright > cost) {
+            Make_Research_Colony_(cid, cost - (c->production_spent + c->bought_outright));
+          }
         }
       }
       // TODO: stop big projects on colonies whose production has dropped
@@ -535,7 +543,6 @@ namespace AITK_COLONY {
       colonies_with_score[i].y = cid;
       if (Is_Kickstart_Build_(c->producing[0])) {
         colonies_with_score[i].x = INT_MAX;
-        aidata->no_shipping_at_star[pid][stid] = 1;
       } else {
         colonies_with_score[i].x = AITK::Planet_Score_(&MOX::planet[MOX::colony[colonies[i]].planet], pid, 1);
         if (colonies_with_score[i].x == INT_MAX) { colonies_with_score[i].x--; }
@@ -611,6 +618,10 @@ namespace AITK_COLONY {
         c->producing[0] = COLONY_PRODUCTION_HOUSING;
       } else if (c->producing[0] == COLONY_PRODUCTION_HOUSING && !Colony_Can_Grow(c)) {
         c->producing[0] = COLONY_PRODUCTION_AI_STOCKPILE;
+      }
+
+      if (Is_Kickstart_Build_(c->producing[0])) {
+        aidata->no_shipping_at_star[pid][stid] = 1;
       }
     }
   }
@@ -689,7 +700,7 @@ namespace AITK_COLONY {
       int new_transports_needed = std::max(0, transports_wanted - aidata->nb_transports[pid]);
       int max_queued_transports = (aidata->nb_colonies_by_player[pid]+5)/6;
 
-      int spies_wanted = std::min(63, (aidata->population[pid]-30)/2);
+      int spies_wanted = std::min(63, (aidata->population[pid]-30)/5);
       if (aidata->nb_contacts[pid] == 0) { spies_wanted = 0; }
       int new_spies_needed = std::max(0, spies_wanted - aidata->nb_spies[pid]);
       int max_queued_spies = (aidata->nb_colonies_by_player[pid]+9)/10;
@@ -765,6 +776,7 @@ namespace AITK_COLONY {
       int combat_command_points_wanted = (p->command_points + std::max<int>(0, p->surplus_bc-10)/10)*3/4; // TODO: fix this formula
       if (aidata->strategy[pid] == AITK::STRAT_DROIDS) { combat_command_points_wanted = 0; }
       if (aidata->nb_threats[pid] == 0 && aidata->nb_threatens[pid] == 0) { combat_command_points_wanted = std::min(6, combat_command_points_wanted); }
+      if (aidata->nb_contacts[pid] == 0 && aidata->nb_stars_by_player[pid] + aidata->nb_colony_ships[pid] < 3) { combat_command_points_wanted = std::min(3, combat_command_points_wanted); }
       int new_combat_command_points_needed = std::max(0, combat_command_points_wanted - (aidata->combat_command_points[pid] + aidata->queued_combat_command_points[pid]));
       
       struct AITK::int_pair empire_needs[] = {
@@ -802,11 +814,11 @@ namespace AITK_COLONY {
             if (b == COLONY_PRODUCTION_CUSTOM_DESIGN) {
               int cost_small = COLCALC::Colony_Product_Cost(c, COLBLDG::Colony_Production_From_Ship_Design_Index(aidata->military_ship_small[pid]));
               if (aidata->military_ship_big[pid] == HULL_DOOM_STAR) {
-                memcpy(&p->ship_designs[HULL_DOOM_STAR], &aidata->doom_star_design, sizeof(struct s_ship_design));
+                memcpy(&p->ship_designs[HULL_DOOM_STAR], &(aidata->doom_star_design[pid]), sizeof(struct s_ship_design));
               }
               int cost_big = COLCALC::Colony_Product_Cost(c, COLBLDG::Colony_Production_From_Ship_Design_Index(aidata->military_ship_big[pid]));
               if (c->production_spent + 10*prod >= cost_big
-                  && aidata->game_turn >= (MOX::settings.starting_civilization_level == STARTING_CIVILIZATION_LEVEL_PRE_WARP ? 50 : 40)) {
+                  && aidata->game_turn >= (MOX::settings.starting_civilization_level == STARTING_CIVILIZATION_LEVEL_PRE_WARP ? 60 : 50)) {
                 nb = aidata->military_ship_big[pid]+1;
                 b = COLBLDG::Colony_Production_From_Ship_Design_Index(aidata->military_ship_big[pid]);
               } else if (c->production_spent + 10*prod >= cost_small) {
@@ -933,7 +945,7 @@ namespace AITK_COLONY {
           int design_index = COLBLDG::Colony_Production_Ship_Design_Index(c->producing[0]);
           int ship_id;
           if (design_index == HULL_DOOM_STAR) {
-            ship_id = COLBLDG::Create_Ship_From_Design(pid, &aidata->doom_star_design[pid], cid);
+            ship_id = COLBLDG::Create_Ship_From_Design(pid, &(aidata->doom_star_design[pid]), cid);
           } else {
             ship_id = COLBLDG::Create_Ship(pid, design_index, cid);
           }
@@ -964,12 +976,12 @@ namespace AITK_COLONY {
 
       struct AITK::int_pair colonies_with_score[aidata->nb_unblockaded_colonies_by_player[pid]];
       int nb_colonies = 0;
-      for (int i = 0; i < aidata->nb_unblockaded_colonies_by_player[pid]; i++) {
+      for (int i = 0; i < aidata->nb_unblockaded_colonies_by_player[pid]; i++) { 
         int cid = aidata->unblockaded_colonies_by_player[pid][i];
         struct s_colony * c = &MOX::colony[cid];
         if (EVENTS::Event_Check_Space_Anomaly(cid)) { continue; }
         int stid = MOX::planet[c->planet].star_index;
-        if (aidata->no_shipping_at_star[pid][stid]) { continue; }
+        if (aidata->no_shipping_at_star[pid][stid]) { continue;  }
         int score = AITK::Planet_Score_(&MOX::planet[c->planet], pid, 1);
         colonies_with_score[nb_colonies].y = cid;
         colonies_with_score[nb_colonies].x = score;
@@ -1008,9 +1020,66 @@ namespace AITK_COLONY {
         }
       }
       qsort(dest_colonies_with_score, nb_dest_colonies, sizeof(*dest_colonies_with_score), AITK::cmp_int_pair_dec);
+      qsort(source_colonies_with_score, nb_source_colonies, sizeof(*source_colonies_with_score), AITK::cmp_int_pair_inc);
+
+      // While all dest colonies are full, move a colony from source to dest
+      int nb_dest_colonies_not_full = 0;
+      for (int dest_rank = 0; dest_rank < nb_dest_colonies; dest_rank++) {
+        int dest_id = dest_colonies_with_score[dest_rank].y;
+        int dest_score = dest_colonies_with_score[dest_rank].x;
+        struct s_colony * dest = &MOX::colony[dest_id];
+        for (int r = 0; r < 8; r++) {
+          if (source_pop_by_race[r] > 0) {
+            if (SETTLER::Room_For_Another(dest, r, 1)) {
+              nb_dest_colonies_not_full++;
+              break;
+            }
+          }
+        }
+      }
+      while (nb_dest_colonies_not_full == 0 && nb_source_colonies > 0) {
+        int cid = source_colonies_with_score[nb_source_colonies-1].y;
+        struct s_colony * c = &MOX::colony[cid];
+        for (int pop_index = 0 ; pop_index < c->n_pops ; pop_index++) {
+          int r = POP::Get_Race(c->pop[pop_index]);
+          if (r < 8) { source_pop_by_race[r]--; }
+        }
+
+        nb_dest_colonies++;
+        memcpy(&dest_colonies_with_score[nb_dest_colonies-1],
+               &source_colonies_with_score[nb_source_colonies-1],
+               sizeof(*source_colonies_with_score));
+        nb_source_colonies--;
+
+        for (int r = 0; r < 8; r++) {
+          if (source_pop_by_race[r] > 0) {
+            if (SETTLER::Room_For_Another(c, r, 1)) {
+              nb_dest_colonies_not_full++;
+              break;
+            }
+          }
+        }
+      }
 
       int ship_capacity = p->surplus_freighters / 5;
 
+      // DEBUG
+      printf("\n%s (%d):\n", p->race_name, ship_capacity);
+      printf("Dest:\n");
+      for (int dest_rank = 0; dest_rank < nb_dest_colonies; dest_rank++) {
+        int dest_id = dest_colonies_with_score[dest_rank].y;
+        int dest_score = dest_colonies_with_score[dest_rank].x;
+        struct s_colony * dest = &MOX::colony[dest_id];
+        printf("  %s (%d)\n", HACCESS::Get_Planet_Name_No_Prime(dest->planet), dest_score);
+      }
+      printf("Source:\n");
+      for (int src_rank = 0; src_rank < nb_source_colonies; src_rank++) {
+        int src_id = source_colonies_with_score[src_rank].y;
+        int src_score = source_colonies_with_score[src_rank].x;
+        struct s_colony * src = &MOX::colony[src_id];
+        printf("  %s (%d)\n", HACCESS::Get_Planet_Name_No_Prime(src->planet), src_score);
+      }
+        
       for (int dest_rank = 0; dest_rank < nb_dest_colonies && ship_capacity > 0 && nb_source_colonies > 0; dest_rank++) {
         int dest_id = dest_colonies_with_score[dest_rank].y;
         int dest_score = dest_colonies_with_score[dest_rank].x;
@@ -1063,6 +1132,8 @@ namespace AITK_COLONY {
                  best_eta, dest_score - source_colonies_with_score[best_source_rank].x);*/
           source_pop_by_race[POP::Get_Race(source->pop[best_pop_index])]--;
           SETTLER::Settle_Pop(source, best_pop_index, dest);
+          printf("%s -> ", HACCESS::Get_Planet_Name_No_Prime(source->planet));
+          printf("%s\n", HACCESS::Get_Planet_Name_No_Prime(dest->planet)); // DEBUG
           ship_capacity--;
           if (!Colony_Has_More_Than_One_Grower_(source)) {
             for (int pop_index = 0 ; pop_index < source->n_pops ; pop_index++) {
@@ -1114,6 +1185,33 @@ namespace AITK_COLONY {
       last_tax_rate_tried += 10;
     }      
   }
+
+  void Update_Queued_Ships(struct AITK::aidata * aidata) {
+    for (int cid = 0; cid < MOX::NUM_COLONIES; cid++) {
+      struct s_colony * c = MOX::colony+cid;
+      if (c->owner == -1) { continue; }
+      if (c->outpost_flag) { continue; }
+      if (EVENTS::Event_Check_Space_Anomaly(cid)) { continue; }
+      int pid = c->owner;
+      struct s_player * p = MOX::player + pid;
+      if (p->eliminated || p->objectives == PLAYER_OBJECTIVE_HUMAN) { continue; }
+
+      int product = c->producing[0];
+      if (COLBLDG::Colony_Production_Is_Queued_Ship(product)) {
+        int16_t shid = COLBLDG::Colony_Production_Ship_Index(product);
+        s_ship_data * sh = &MOX::ship[shid];
+        if (sh->d.ship_type == SHIP_TYPE_COMBAT) {
+          s_ship_design * new_design;
+          if (sh->d.size < SHIP_SIZE_DOOM_STAR) {
+            new_design = &p->ship_designs[sh->d.size];
+          } else {
+            new_design = &aidata->doom_star_design[pid];
+          }
+          memcpy(&sh->d, new_design, sizeof(sh->d));
+        }
+      }
+    }
+  }
   
   void __cdecl Manage_Colonies_(struct AITK::aidata * aidata) {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "aitk: Manage_Colonies_ start");
@@ -1133,6 +1231,7 @@ namespace AITK_COLONY {
     Opportunistic_Local_Build_(aidata);
     Realize_Products_(aidata);
     Buy_Products_(aidata);
+    Update_Queued_Ships(aidata);
     
     Move_Some_Colonists_To_Research_(aidata);
     
