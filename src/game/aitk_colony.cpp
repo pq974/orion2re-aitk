@@ -773,6 +773,13 @@ namespace AITK_COLONY {
       if (aidata->strategy[pid] != AITK::STRAT_EXPAND) { colony_ships_wanted = 0; }
       int new_colony_ships_needed = std::max(0, colony_ships_wanted - (aidata->nb_colony_ships[pid] + aidata->nb_queued_colony_ships[pid]));
 
+      //* DEBUG
+      printf("%s %d %d %d\n", p->race_name, colony_ships_wanted, aidata->nb_colony_ships[pid], aidata->nb_queued_colony_ships[pid]); 
+      for (int i = 0; i < aidata->nb_colonizable_planets[pid]; i++) {
+        printf("%s %d\n", HACCESS::Get_Planet_Name_No_Prime(aidata->colonizable_planets[pid][i].planet_idx), aidata->colonizable_planets[pid][i].contextual_value);
+      }
+      //*/
+
       int combat_command_points_wanted = (p->command_points + std::max<int>(0, p->surplus_bc-10)/10)*3/4; // TODO: fix this formula
       if (aidata->strategy[pid] == AITK::STRAT_DROIDS) { combat_command_points_wanted = 0; }
       if (aidata->nb_threats[pid] == 0 && aidata->nb_threatens[pid] == 0) { combat_command_points_wanted = std::min(6, combat_command_points_wanted); }
@@ -1064,6 +1071,7 @@ namespace AITK_COLONY {
       int ship_capacity = p->surplus_freighters / 5;
 
       // DEBUG
+      /*
       printf("\n%s (%d):\n", p->race_name, ship_capacity);
       printf("Dest:\n");
       for (int dest_rank = 0; dest_rank < nb_dest_colonies; dest_rank++) {
@@ -1079,6 +1087,7 @@ namespace AITK_COLONY {
         struct s_colony * src = &MOX::colony[src_id];
         printf("  %s (%d)\n", HACCESS::Get_Planet_Name_No_Prime(src->planet), src_score);
       }
+      //*/
         
       for (int dest_rank = 0; dest_rank < nb_dest_colonies && ship_capacity > 0 && nb_source_colonies > 0; dest_rank++) {
         int dest_id = dest_colonies_with_score[dest_rank].y;
@@ -1132,8 +1141,10 @@ namespace AITK_COLONY {
                  best_eta, dest_score - source_colonies_with_score[best_source_rank].x);*/
           source_pop_by_race[POP::Get_Race(source->pop[best_pop_index])]--;
           SETTLER::Settle_Pop(source, best_pop_index, dest);
+          /*
           printf("%s -> ", HACCESS::Get_Planet_Name_No_Prime(source->planet));
           printf("%s\n", HACCESS::Get_Planet_Name_No_Prime(dest->planet)); // DEBUG
+          //*/
           ship_capacity--;
           if (!Colony_Has_More_Than_One_Grower_(source)) {
             for (int pop_index = 0 ; pop_index < source->n_pops ; pop_index++) {

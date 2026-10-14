@@ -49,7 +49,7 @@ namespace AITK {
 
     uint8_t preferred_tech[8];
 
-    s_ai_colonizable_planet colonizable_planets[8][MAX_PLANETS*sizeof(s_ai_colonizable_planet)];
+    s_ai_colonizable_planet colonizable_planets[8][MAX_PLANETS];
     int nb_colonizable_planets[8];
 
     int military_ship_small[8];
@@ -62,6 +62,7 @@ namespace AITK {
     int threatens[8][8];
     int nb_threats[8];
     int nb_threatens[8];
+    int at_risk_of_blitz[8];
 
     int high_prod_start[8];
     int nb_spies[8];

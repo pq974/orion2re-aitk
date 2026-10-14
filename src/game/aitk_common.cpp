@@ -274,6 +274,19 @@ namespace AITK {
       AIMOVE::p_ai = &MOX::player[pid];
       int16_t nb_colonizable_planets;
       AIMOVE::Get_Colonizable_Planets(aidata->colonizable_planets[pid], &nb_colonizable_planets);
+      // Remove guarded planets until we have zortrium
+      // TODO: find a better condition
+      if (p->tech_fields[TECHDATA::technology_applications[TECH_APP_ZORTRIUM_ARMOR].tech_field_id] != 3) {
+        for (int i = 0; i < nb_colonizable_planets; i++) {
+          int plid = aidata->colonizable_planets[pid][i].planet_idx;
+          struct s_planet_data * pl = &MOX::planet[plid];
+          if (AIMOVE::Star_Has_Monster(pl->star_index)) {
+            memmove(&(aidata->colonizable_planets[pid][i]), &(aidata->colonizable_planets[pid][nb_colonizable_planets-1]), sizeof(aidata->colonizable_planets[pid][i]));
+            nb_colonizable_planets--;
+            i--;
+          }
+        }
+      }
       aidata->nb_colonizable_planets[pid] = nb_colonizable_planets;
     }
     AIMOVE::i_ai = saved_i_ai;
@@ -301,10 +314,16 @@ namespace AITK {
       struct s_player * p = MOX::player + pid;
       if (p->eliminated) { continue; }
       aidata->nb_contacts[pid] = 0;
+      aidata->at_risk_of_blitz[pid] = 0;
       for (int pid2 = 0; pid2 < MOX::NUM_PLAYERS; pid2++) {
         if (pid2 == pid) { continue; }
         struct s_player * p2 = MOX::player + pid2;
-        if (!p2->eliminated && p->contact[pid2]) { aidata->nb_contacts[pid]++; }
+        if (!p2->eliminated && p->contact[pid2]) {
+          aidata->nb_contacts[pid]++;
+          if (aidata->game_turn < 100 && (p2->traits[TRAIT_TELEPATHIC] || p2->traits[TRAIT_WARLORD])) {
+            aidata->at_risk_of_blitz[pid] = 1;
+          }
+        }
       }
     }
     

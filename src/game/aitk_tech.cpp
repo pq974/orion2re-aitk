@@ -90,10 +90,17 @@ namespace AITK_TECH {
     tech_path[k++] = TECH_APP_STANDARD_FUEL_CELLS;
 
     tech_path[k++] = TECH_APP_SPACE_SCANNER;  //
-    tech_path[k++] = TECH_APP_FUSION_RIFLE;   // Experimental: anti-blitz
+    tech_path[k++] = TECH_APP_FUSION_RIFLE;   // Experimental: blind anti-blitz
     tech_path[k++] = TECH_APP_BATTLE_SCANNER; //
 
     tech_path[k++] = TECH_APP_COLONY_SHIP;
+
+    if (aidata->at_risk_of_blitz[player_id]) {
+      // Experimental: anti-blitz
+      tech_path[k++] = TECH_APP_TRITANIUM_ARMOR;
+      tech_path[k++] = TECH_APP_BATTLE_PODS;
+      tech_path[k++] = TECH_APP_MERCULITE_MISSILE;
+    }
     
     tech_path[k++] = TECH_APP_BIOSPHERES;
 

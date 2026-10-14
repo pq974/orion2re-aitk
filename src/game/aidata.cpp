@@ -913,13 +913,17 @@ namespace AIDATA {
                     int16_t colony_idx = MOX::planet[sys_planet_idx].colony_index;
 
                     if (colony_idx == -1) {
-                        // Uncolonized planet in system
-                        uncolonized_system_base_sum += (*AIDATA::base_planet_values)[p][sys_planet_idx];
+                      // Uncolonized planet in system
+                      if (MOX::planet[sys_planet_idx].planet_type == PLANET_TYPE_PLANET) {
+                          uncolonized_system_base_sum += (*AIDATA::base_planet_values)[p][sys_planet_idx];
+                      } 
                     } else {
                         if (MOX::colony[colony_idx].owner == p) {
                             // Colony owned by the current player
-                            owned_colonies_in_system++;
-                            owned_system_base_sum += (*AIDATA::base_planet_values)[p][sys_planet_idx];
+                            if (!MOX::colony[colony_idx].outpost_flag) {
+                                owned_colonies_in_system++;
+                                owned_system_base_sum += (*AIDATA::base_planet_values)[p][sys_planet_idx];
+                            }
                         } else {
                             // Colony owned by an enemy
                             enemy_colonies_in_system++;
@@ -930,7 +934,7 @@ namespace AIDATA {
                 if (planet->colony_index == -1) {
                     // Current planet is not yet colonized
                     if (owned_colonies_in_system > 0) {
-                        // Bonus if we already have a presence in the system
+                        // Penalty if we already have a presence in the system
                         contextual_val = (int16_t)((contextual_val * (planet->size + 1)) / 10);
                     } else {
                         // Small bonus for general system potential
