@@ -1257,7 +1257,8 @@ namespace CMBTAI {
         if (MOX::combat_data[target_idx].current_speed + MOX::combat_data[target_idx].movement_left
             + BOARDING::board_range.normal >= CMBTAI::Range_To_Ship_Squares(attacker_idx, target_idx)
             && MOX::combat_data[target_idx].marine_count > 0
-            && MOX::combat_data[attacker_idx].current_speed == 0) {
+            && MOX::combat_data[attacker_idx].current_speed == 0
+            && attacker_idx != 0) {
           damage_received += CMBTAI::Get_Total_Hits(attacker_idx) / 5;
         }
 

@@ -62,7 +62,9 @@ namespace AITK {
     int threatens[8][8];
     int nb_threats[8];
     int nb_threatens[8];
+    
     int at_risk_of_blitz[8];
+    int at_risk_of_fighters_blitz[8];
 
     int high_prod_start[8];
     int nb_spies[8];

@@ -108,6 +108,7 @@ namespace AITK_COLONY {
     for (int pid = 0; pid < MOX::NUM_PLAYERS; pid++) {
       struct s_player * p = MOX::player + pid;
       if (p->eliminated || p->objectives == PLAYER_OBJECTIVE_HUMAN) { continue; }
+      if (aidata->nb_unblockaded_colonies_by_player[pid] == 0) { continue; }
       
       int food_produced = 0;
       int food_needed = 0;
@@ -362,13 +363,16 @@ namespace AITK_COLONY {
       struct s_player * p = MOX::player + pid;
       if (p->eliminated || p->objectives == PLAYER_OBJECTIVE_HUMAN) { continue; }
 
+      if (aidata->at_risk_of_fighters_blitz[pid] == 2) { continue; }
+
       // Special case: rush to get early tech (freighters, lab, factories, cships)
       if (p->tech_fields[TECHDATA::technology_applications[TECH_APP_AUTOMATED_FACTORIES].tech_field_id] != 3
           || p->tech_fields[TECHDATA::technology_applications[TECH_APP_RESEARCH_LABORATORY].tech_field_id] != 3
           || p->tech_fields[TECHDATA::technology_applications[TECH_APP_STANDARD_FUEL_CELLS].tech_field_id] != 3
           || (aidata->combat_command_points[pid] >= 6 &&
               (p->tech_fields[TECHDATA::technology_applications[TECH_APP_BATTLE_SCANNER].tech_field_id] != 3
-               || p->tech_fields[TECHDATA::technology_applications[TECH_APP_COLONY_SHIP].tech_field_id] != 3))) {
+               || p->tech_fields[TECHDATA::technology_applications[TECH_APP_COLONY_SHIP].tech_field_id] != 3))
+          || aidata->at_risk_of_fighters_blitz[pid] == 1) {
         for (int i = 0; i < aidata->nb_colonies_by_player[pid]; i++) {
           int cid = aidata->colonies_by_player[pid][i];
           if (EVENTS::Event_Check_Space_Anomaly(cid)) { continue; }
@@ -379,7 +383,8 @@ namespace AITK_COLONY {
               || COLBLDG::Colony_Production_Is_Queued_Ship(c->producing[0])
               || ((c->producing[0] == COLONY_PRODUCTION_FREIGHTERS || c->producing[0] == BUILDING_COLONY_BASE)
                   && (!high_prod || (p->tech_fields[TECHDATA::technology_applications[TECH_APP_FREIGHTERS].tech_field_id] != 3
-                                     && !p->traits[TRAIT_EATS_MINERALS])))) {
+                                     && !p->traits[TRAIT_EATS_MINERALS])))
+              || (aidata->at_risk_of_fighters_blitz[pid] == 1 && c->producing[0] != BUILDING_RESEARCH_LAB)) {
             Make_Research_Colony_(cid, 0);
             if (c->producing[0] == BUILDING_COLONY_BASE || COLBLDG::Colony_Production_Is_Queued_Ship(c->producing[0])) {
               COLBLDG::Delete_From_Colony_Queue(cid, 0);
@@ -443,7 +448,8 @@ namespace AITK_COLONY {
           }
           int prod_cost = COLCALC::Colony_Producing_Product_Cost(c);
           if (phase > 0 || Is_Priority_Buy_(c->producing[0])
-              || c->production_spent * 2 >= prod_cost) {
+              || c->production_spent * 2 >= prod_cost
+              || (aidata->at_risk_of_fighters_blitz[pid] == 2 && COLBLDG::Colony_Production_Is_Queued_Ship(c->producing[0]))) {
             int bc_cost = COLCALC::Colony_Cost_To_Buy_Producing_Product(c);
             if (bc_cost <= p->bc && p->bc - bc_cost + p->surplus_bc >= buffer) {
               COLCALC::Colony_Buy_Outright(cid);
@@ -541,7 +547,7 @@ namespace AITK_COLONY {
       int cid = colonies[i];
       struct s_colony * c = &MOX::colony[cid];
       colonies_with_score[i].y = cid;
-      if (Is_Kickstart_Build_(c->producing[0])) {
+      if (Is_Kickstart_Build_(c->producing[0]) && aidata->at_risk_of_fighters_blitz[pid] != 2) {
         colonies_with_score[i].x = INT_MAX;
       } else {
         colonies_with_score[i].x = AITK::Planet_Score_(&MOX::planet[MOX::colony[colonies[i]].planet], pid, 1);
@@ -786,6 +792,26 @@ namespace AITK_COLONY {
       if (aidata->nb_contacts[pid] == 0 && aidata->nb_stars_by_player[pid] + aidata->nb_colony_ships[pid] < 3) { combat_command_points_wanted = std::min(3, combat_command_points_wanted); }
       int new_combat_command_points_needed = std::max(0, combat_command_points_wanted - (aidata->combat_command_points[pid] + aidata->queued_combat_command_points[pid]));
       
+      qsort(aidata->colonies_by_player[pid], aidata->nb_colonies_by_player[pid], sizeof(*aidata->colonies_by_player[pid]), cmp_colony_industry_inc);
+      
+      if (aidata->at_risk_of_fighters_blitz[pid] == 2) {
+        int cid = aidata->colonies_by_player[pid][0];
+        struct s_colony * c = &MOX::colony[cid];
+        if (!COLBLDG::Colony_Production_Is_Queued_Ship(c->producing[0])) {
+          COLBLDG::Delete_From_Colony_Queue(cid, 0);
+          c->producing[0] = COLONY_PRODUCTION_AI_STOCKPILE;
+          new_combat_command_points_needed = std::max(new_combat_command_points_needed, 3);
+        } else {
+          int16_t shid = COLBLDG::Colony_Production_Ship_Index(c->producing[0]);
+          s_ship_data * sh = &MOX::ship[shid];
+          if (sh->d.ship_type != SHIP_TYPE_COMBAT) {
+            COLBLDG::Delete_From_Colony_Queue(cid, 0);
+            c->producing[0] = COLONY_PRODUCTION_AI_STOCKPILE;
+            new_combat_command_points_needed = std::max(new_combat_command_points_needed, 3);
+          }
+        }
+      }
+      
       struct AITK::int_pair empire_needs[] = {
         { .x = COLONY_PRODUCTION_COLONY_SHIP,
           .y = new_colony_ships_needed },
@@ -793,12 +819,10 @@ namespace AITK_COLONY {
           .y = new_combat_command_points_needed },
       };
       int nb_empire_needs = sizeof(empire_needs) / sizeof(*empire_needs);
-
-      qsort(aidata->colonies_by_player[pid], aidata->nb_colonies_by_player[pid], sizeof(*aidata->colonies_by_player[pid]), cmp_colony_industry_inc);
       
       uint8_t colony_used[aidata->nb_colonies_by_player[pid]];
       memset(colony_used, 0, aidata->nb_colonies_by_player[pid]);
-
+      
       int threshold = std::max(0, (aidata->nb_colonies_by_player[pid]/2)-1);
       if (p->tech_fields[TECHDATA::technology_applications[TECH_APP_PLANETARY_SUPERCOMPUTER].tech_field_id] != 3) {
         threshold = std::max(0, aidata->nb_colonies_by_player[pid]-2);
@@ -980,6 +1004,7 @@ namespace AITK_COLONY {
     for (int pid = 0; pid < MOX::NUM_PLAYERS; pid++) {
       struct s_player * p = MOX::player + pid;
       if (p->eliminated || p->objectives == PLAYER_OBJECTIVE_HUMAN) { continue; }
+      if (aidata->nb_unblockaded_colonies_by_player[pid] == 0) { continue; }
 
       struct AITK::int_pair colonies_with_score[aidata->nb_unblockaded_colonies_by_player[pid]];
       int nb_colonies = 0;

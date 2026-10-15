@@ -2004,8 +2004,42 @@ namespace AIMOVE {
 
             (*AIDATA::i_all_combat_ships)[i_ai][star_idx] = -1;
 
+            // Don't send a big fleet just to take out an outpost
+            int only_outposts = 1;
+            for (int orbit = 0; orbit < 5; orbit++) {
+              int plid = MOX::star[best_star_idx].planet_index[orbit];
+              if (plid < 0) { continue; }
+              struct s_planet_data * pl = &MOX::planet[plid];
+              if (pl->planet_type == PLANET_TYPE_PLANET
+                  && pl->colony_index >= 0) {
+                struct s_colony * c = &MOX::colony[pl->colony_index];
+                if (!c->outpost_flag && c->owner != i_ai) {
+                  only_outposts = 0;
+                  break;
+                }
+              }
+            }
+            if (only_outposts) {
+              int smallest_ship = -1;
+              int smallest_size;
+              for (int j = 0; j <  ship_count; j++) {
+                int shid = ship_list[j];
+                s_ship_data * sh = &MOX::ship[shid];
+                if (sh->d.ship_type == SHIP_TYPE_COMBAT) {
+                  if (smallest_ship < 0 || sh->d.size < smallest_size) {
+                    smallest_size = sh->d.size;
+                    smallest_ship = shid;
+                  }
+                }
+              }
+              ship_list[0] = smallest_ship;
+              ship_list[1] = -1;
+              ship_count = smallest_ship >= 0 ? 1 : 0;
+            }
+
             SHIPMOVE::Ships_Try_To_Move_To(ship_list, best_star_idx, &move_info);
             SHIPMOVE::Make_Ships_Move_To(ship_list, best_star_idx, &move_info);
+            printf("> %s %d %d\n", MOX::player[i_ai].race_name, mission_type, min_pop);
 
             while (ship_count > 0) {
                 ship_count--;

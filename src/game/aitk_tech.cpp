@@ -78,6 +78,16 @@ namespace AITK_TECH {
     int k = 0;
     if (aidata->high_prod_start[player_id] && !player->traits[TRAIT_EATS_MINERALS]) { tech_path[k++] = TECH_APP_FREIGHTERS; }
     tech_path[k++] = TECH_APP_ELECTRONIC_COMPUTER;
+
+    if (aidata->at_risk_of_fighters_blitz[player_id]) {
+      // Experimental: anti-blitz
+      tech_path[k++] = TECH_APP_REINFORCED_HULL;
+      tech_path[k++] = TECH_APP_TRITANIUM_ARMOR;
+      tech_path[k++] = TECH_APP_SPACE_SCANNER;
+      tech_path[k++] = TECH_APP_FUSION_BEAM;
+      tech_path[k++] = TECH_APP_BATTLE_SCANNER;
+    }
+    
     tech_path[k++] = TECH_APP_RESEARCH_LABORATORY;
     if (advanced_construction_choice != TECH_APP_HEAVY_ARMOR) {
       tech_path[k++] = TECH_APP_REINFORCED_HULL;

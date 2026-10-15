@@ -315,6 +315,7 @@ namespace AITK {
       if (p->eliminated) { continue; }
       aidata->nb_contacts[pid] = 0;
       aidata->at_risk_of_blitz[pid] = 0;
+      aidata->at_risk_of_fighters_blitz[pid] = 0;
       for (int pid2 = 0; pid2 < MOX::NUM_PLAYERS; pid2++) {
         if (pid2 == pid) { continue; }
         struct s_player * p2 = MOX::player + pid2;
@@ -322,6 +323,17 @@ namespace AITK {
           aidata->nb_contacts[pid]++;
           if (aidata->game_turn < 100 && (p2->traits[TRAIT_TELEPATHIC] || p2->traits[TRAIT_WARLORD])) {
             aidata->at_risk_of_blitz[pid] = 1;
+            if (p2->tech_applications[TECH_APP_FIGHTER_BAYS] == TECH_RESEARCH_STATUS_RESEARCHED) {
+              if (p->tech_fields[TECHDATA::technology_applications[TECH_APP_REINFORCED_HULL].tech_field_id] != 3
+                  || p->tech_fields[TECHDATA::technology_applications[TECH_APP_TRITANIUM_ARMOR].tech_field_id] != 3
+                  || p->tech_fields[TECHDATA::technology_applications[TECH_APP_FUSION_BEAM].tech_field_id] != 3
+                  || p->tech_fields[TECHDATA::technology_applications[TECH_APP_BATTLE_SCANNER].tech_field_id] != 3
+                  || p->tech_fields[TECHDATA::technology_applications[TECH_APP_STANDARD_FUEL_CELLS].tech_field_id] != 3) {
+                aidata->at_risk_of_fighters_blitz[pid] = 1;
+              } else if (aidata->combat_command_points[pid] < 3 && aidata->game_turn < 60) {
+                aidata->at_risk_of_fighters_blitz[pid] = 2;
+              }
+            }
           }
         }
       }
